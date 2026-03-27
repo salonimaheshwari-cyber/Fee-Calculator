@@ -439,10 +439,11 @@ function onCred(response) {
     const payload = parseJwt(response.credential);
     const email   = (payload.email || "").toLowerCase();
     const domain  = email.split("@")[1] || "";
+    const hd      = payload.hd || "";
 
-    // Double-check domain even though hosted_domain restricts it
-    if (domain !== CFG.domain) {
-      showErr(`❌ Access denied. Only @${CFG.domain} accounts can access this dashboard.\nYou attempted: ${email}`);
+    // Strict domain validation
+    if (hd !== CFG.domain || domain !== CFG.domain) {
+      showErr(`❌ Access denied. Only @${CFG.domain} accounts can access this dashboard.`);
       google.accounts.id.disableAutoSelect();
       return;
     }
