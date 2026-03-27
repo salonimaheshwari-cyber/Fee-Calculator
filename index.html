@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Fee Calculator · PW</title>
+
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+  <style>
+    :root {
+      --bg:        #07090f;
+      --surface:   #0e1219;
+      --card:      #131b27;
+      --border:    rgba(255,255,255,.07);
+      --accent:    #4f8ef7;
+      --teal:      #2dd4bf;
+      --gold:      #fbbf24;
+      --text:      #eef2ff;
+      --muted:     #6b7fa3;
+      --success:   #34d399;
+      --danger:    #f87171;
+      --r:         16px;
+      --glow:      0 0 40px rgba(79,142,247,.15);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .mesh {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 70% 55% at 15% 5%,  rgba(30,60,120,.45) 0%, transparent 65%),
+        radial-gradient(ellipse 55% 45% at 85% 95%, rgba(10,60,80,.4)  0%, transparent 60%),
+        radial-gradient(ellipse 40% 40% at 50% 50%, rgba(20,30,60,.3)  0%, transparent 70%);
+    }
+    .mesh::after {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      background-size: 200px; opacity:.5; pointer-events:none;
+    }
+
+    /* ═══ LOGIN ═══ */
+    #login-screen {
+      position: fixed; inset: 0; z-index: 200;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity .55s cubic-bezier(.4,0,.2,1), visibility .55s;
+    }
+    #login-screen.out { opacity:0; visibility:hidden; pointer-events:none; }
+
+    .login-wrap {
+      position: relative;
+      width: min(460px, 92vw);
+      animation: riseIn .7s cubic-bezier(.22,1,.36,1) both;
+    }
+    .login-halo {
+      position: absolute; inset: -40px;
+      background: radial-gradient(ellipse 80% 70% at 50% 50%, rgba(79,142,247,.18) 0%, transparent 70%);
+      border-radius: 50%; filter: blur(20px); pointer-events: none;
+    }
+    .login-card {
+      position: relative;
+      background: linear-gradient(145deg, #16202f, #0f1720);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 24px;
+      padding: 52px 44px 44px;
+      text-align: center;
+      box-shadow: 0 32px 80px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.08);
+      overflow: hidden;
+    }
+    .login-card::before {
+      content: '';
+      position: absolute; top:0; left:10%; right:10%; height:1px;
+      background: linear-gradient(90deg, transparent, var(--accent), var(--teal), transparent);
+      opacity: .7;
+    }
+    .pw-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(79,142,247,.12);
+      border: 1px solid rgba(79,142,247,.25);
+      border-radius: 40px; padding: 5px 14px 5px 10px;
+      font-size: .75rem; font-weight: 600; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 28px;
+    }
+    .pw-dot {
+      width:7px; height:7px; border-radius:50%;
+      background: var(--accent); box-shadow: 0 0 8px var(--accent);
+      animation: blink 2.2s ease-in-out infinite;
+    }
+    .login-card h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.2rem; line-height: 1.15; letter-spacing: -.02em; margin-bottom: 10px;
+    }
+    .login-card h1 em {
+      font-style: italic;
+      background: linear-gradient(90deg, var(--accent), var(--teal));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .login-card p {
+      color: var(--muted); font-size: .9rem; line-height: 1.65;
+      margin-bottom: 36px; font-weight: 300;
+    }
+    .login-card p strong { color: var(--text); font-weight: 600; }
+
+    .btn-google {
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      width: 100%; padding: 15px 24px; border-radius: 12px;
+      background: #fff; color: #1a1a2e; border: none;
+      font-family: 'Outfit', sans-serif; font-size: .95rem; font-weight: 600;
+      cursor: pointer;
+      transition: transform .2s, box-shadow .2s, background .15s;
+      box-shadow: 0 4px 16px rgba(0,0,0,.35);
+    }
+    .btn-google:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,.45); background: #f5f5f5; }
+    .btn-google:active { transform: translateY(0); }
+    .google-icon { width:22px; height:22px; flex-shrink:0; }
+
+    .divider {
+      display: flex; align-items: center; gap: 14px; margin: 24px 0;
+    }
+    .divider::before, .divider::after { content:''; flex:1; height:1px; background:var(--border); }
+    .divider span { font-size:.75rem; color:var(--muted); white-space:nowrap; }
+
+    .login-security {
+      display: flex; align-items: center; justify-content: center;
+      gap: 7px; font-size: .78rem; color: var(--muted);
+    }
+
+    .err {
+      margin-top: 18px;
+      background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3);
+      border-radius: 10px; padding: 11px 16px;
+      font-size: .83rem; color: #fca5a5; display: none; text-align: left;
+    }
+    .err.on { display: block; }
+
+    /* ═══ APP ═══ */
+    #app { display:none; flex-direction:column; min-height:100vh; position:relative; z-index:1; animation:fadeIn .5s ease both; }
+    #app.on { display:flex; }
+
+    header {
+      position: sticky; top:0; z-index:100;
+      height: 62px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px;
+      background: rgba(7,9,15,.85);
+      backdrop-filter: blur(16px) saturate(1.4);
+      border-bottom: 1px solid var(--border);
+    }
+    .brand { display:flex; align-items:center; gap:11px; }
+    .brand-logo {
+      width:34px; height:34px; border-radius:9px;
+      background: linear-gradient(135deg, var(--accent), var(--teal));
+      display:flex; align-items:center; justify-content:center;
+      font-weight:700; font-size:.8rem; color:#fff; letter-spacing:.05em;
+      box-shadow: 0 4px 14px rgba(79,142,247,.35);
+    }
+    .brand-name { font-family:'Playfair Display',serif; font-size:1.05rem; letter-spacing:-.01em; }
+
+    .nav-right { display:flex; align-items:center; gap:12px; }
+
+    .secure-pill {
+      display:flex; align-items:center; gap:6px;
+      background: rgba(52,211,153,.08); border:1px solid rgba(52,211,153,.2);
+      border-radius:30px; padding:5px 12px;
+      font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--success);
+    }
+    .secure-dot { width:6px; height:6px; border-radius:50%; background:var(--success); box-shadow:0 0 6px var(--success); animation:blink 2s infinite; }
+
+    .user-pill {
+      display:flex; align-items:center; gap:9px;
+      background:var(--card); border:1px solid var(--border); border-radius:40px;
+      padding:5px 14px 5px 6px;
+    }
+    .user-av {
+      width:28px; height:28px; border-radius:50%;
+      background:linear-gradient(135deg,var(--accent),var(--gold));
+      display:flex; align-items:center; justify-content:center;
+      font-size:.7rem; font-weight:700; color:#fff; overflow:hidden;
+    }
+    .user-av img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+    .user-email { font-size:.78rem; color:var(--muted); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+    .btn-out {
+      background:none; border:1px solid var(--border); border-radius:8px;
+      color:var(--muted); padding:6px 13px; font-size:.78rem; font-family:'Outfit',sans-serif;
+      cursor:pointer; transition:all .18s;
+    }
+    .btn-out:hover { color:var(--danger); border-color:rgba(248,113,113,.4); background:rgba(248,113,113,.06); }
+
+    main { flex:1; padding:36px 32px 48px; display:flex; flex-direction:column; gap:24px; }
+
+    .ph { display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:14px; }
+    .ph-left h2 { font-family:'Playfair Display',serif; font-size:2rem; letter-spacing:-.025em; line-height:1.1; }
+    .ph-left h2 em { font-style:italic; color:var(--teal); }
+    .ph-left p { color:var(--muted); font-size:.85rem; margin-top:5px; font-weight:300; }
+    .ph-meta {
+      display:flex; align-items:center; gap:6px;
+      background:var(--card); border:1px solid var(--border); border-radius:8px;
+      padding:7px 13px; font-size:.76rem; color:var(--muted);
+    }
+
+    .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+    @media(max-width:900px){ .kpi-grid{ grid-template-columns:repeat(2,1fr); } }
+    @media(max-width:480px){ .kpi-grid{ grid-template-columns:1fr 1fr; } }
+
+    .kpi {
+      background:var(--card); border:1px solid var(--border); border-radius:var(--r);
+      padding:20px 22px; position:relative; overflow:hidden;
+      transition:border-color .25s,transform .25s; cursor:default;
+    }
+    .kpi:hover { border-color:rgba(255,255,255,.15); transform:translateY(-3px); box-shadow:var(--glow); }
+    .kpi-bar { position:absolute; bottom:0; left:0; right:0; height:2.5px; border-radius:0 0 var(--r) var(--r); }
+    .kpi:nth-child(1) .kpi-bar { background:linear-gradient(90deg,var(--accent),var(--teal)); }
+    .kpi:nth-child(2) .kpi-bar { background:linear-gradient(90deg,var(--teal),#a78bfa); }
+    .kpi:nth-child(3) .kpi-bar { background:linear-gradient(90deg,var(--gold),#f97316); }
+    .kpi:nth-child(4) .kpi-bar { background:linear-gradient(90deg,var(--success),var(--teal)); }
+    .kpi-label { font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:10px; }
+    .kpi-value { font-size:1.55rem; font-weight:600; letter-spacing:-.03em; line-height:1; }
+    .kpi-delta { font-size:.75rem; color:var(--success); margin-top:6px; }
+
+    .embed-card {
+      background:var(--card); border:1px solid var(--border); border-radius:20px;
+      overflow:hidden; box-shadow:0 24px 64px rgba(0,0,0,.55);
+      flex:1; display:flex; flex-direction:column; min-height:540px;
+    }
+    .browser-bar {
+      display:flex; align-items:center; gap:12px;
+      padding:13px 18px; background:rgba(255,255,255,.02); border-bottom:1px solid var(--border);
+    }
+    .b-dots { display:flex; gap:6px; }
+    .b-dots i { width:11px; height:11px; border-radius:50%; display:block; }
+    .b-dots i:nth-child(1){ background:#ff5f57; }
+    .b-dots i:nth-child(2){ background:#febc2e; }
+    .b-dots i:nth-child(3){ background:#28c840; }
+    .b-url {
+      flex:1; background:rgba(0,0,0,.3); border:1px solid var(--border); border-radius:7px;
+      padding:6px 13px; font-size:.74rem; color:var(--muted);
+      display:flex; align-items:center; gap:7px;
+    }
+    .b-actions { display:flex; gap:7px; }
+    .b-btn {
+      background:none; border:1px solid var(--border); border-radius:7px;
+      color:var(--muted); padding:5px 11px; font-size:.74rem; font-family:'Outfit',sans-serif;
+      cursor:pointer; transition:all .15s; display:flex; align-items:center; gap:5px;
+    }
+    .b-btn:hover { color:var(--text); border-color:rgba(255,255,255,.2); background:rgba(255,255,255,.04); }
+
+    #loader {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:18px; padding:60px 20px; color:var(--muted); font-size:.88rem; font-weight:300;
+    }
+    .ring { width:42px; height:42px; border:3px solid rgba(255,255,255,.07); border-top-color:var(--accent); border-radius:50%; animation:spin .85s linear infinite; }
+
+    iframe#rpt { width:100%; flex:1; border:none; min-height:500px; display:block; }
+
+    footer {
+      border-top:1px solid var(--border); padding:15px 32px;
+      display:flex; justify-content:space-between; align-items:center;
+      font-size:.75rem; color:var(--muted); flex-wrap:wrap; gap:8px;
+    }
+    .f-left { display:flex; align-items:center; gap:7px; }
+    .f-accent { color:var(--accent); font-weight:600; }
+
+    @keyframes riseIn  { from{opacity:0;transform:translateY(30px) scale(.97)} to{opacity:1;transform:none} }
+    @keyframes fadeIn  { from{opacity:0} to{opacity:1} }
+    @keyframes spin    { to{transform:rotate(360deg)} }
+    @keyframes blink   { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+    @media(max-width:640px){
+      header{padding:0 16px;} main{padding:20px 16px 36px;}
+      .ph-left h2{font-size:1.55rem;} .secure-pill,.ph-meta{display:none;}
+      .b-url{display:none;} .user-email{max-width:110px;}
+    }
+  </style>
+</head>
+<body>
+<div class="mesh"></div>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="login-screen">
+  <div class="login-wrap">
+    <div class="login-halo"></div>
+    <div class="login-card">
+      <div class="pw-badge"><div class="pw-dot"></div>PW Internal</div>
+      <h1>Fee <em>Calculator</em><br/>Dashboard</h1>
+      <p>Restricted to authorized PW organization members.<br/>Sign in with your <strong>@pw.live</strong> Google account to continue.</p>
+
+      <button class="btn-google" id="gBtn">
+        <svg class="google-icon" viewBox="0 0 48 48">
+          <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.5 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/>
+          <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.1 18.9 12 24 12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.5 6.1 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+          <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.3 35.5 26.8 36 24 36c-5.2 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+          <path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.4 4.2-4.4 5.6l6.2 5.2C36.9 40.2 44 35 44 24c0-1.3-.1-2.6-.4-3.9z"/>
+        </svg>
+        Continue with Google
+      </button>
+
+      <div class="divider"><span>secured access only</span></div>
+      <div class="login-security">🔐 Only @pw.live accounts are permitted</div>
+      <div class="err" id="err"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="app">
+  <header>
+    <div class="brand">
+      <div class="brand-logo">PW</div>
+      <span class="brand-name">Fee Calculator</span>
+    </div>
+    <div class="nav-right">
+      <div class="secure-pill"><div class="secure-dot"></div>Org Secured</div>
+      <div class="user-pill">
+        <div class="user-av" id="uAv"></div>
+        <span class="user-email" id="uEmail"></span>
+      </div>
+      <button class="btn-out" id="outBtn">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="ph">
+      <div class="ph-left">
+        <h2>Fee <em>Calculator</em> Dashboard</h2>
+        <p>PW Organization Analytics · Restricted Internal Access</p>
+      </div>
+      <div class="ph-meta">🕐 <span id="ts">—</span></div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-label">Total Fees</div>
+        <div class="kpi-value">₹4.2 Cr</div>
+        <div class="kpi-delta">↑ 12.4% this month</div>
+        <div class="kpi-bar"></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Avg. Fee Rate</div>
+        <div class="kpi-value">1.85%</div>
+        <div class="kpi-delta">↑ 0.3% vs last month</div>
+        <div class="kpi-bar"></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Active Clients</div>
+        <div class="kpi-value">1,247</div>
+        <div class="kpi-delta">↑ 38 new this month</div>
+        <div class="kpi-bar"></div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Processed</div>
+        <div class="kpi-value">8,901</div>
+        <div class="kpi-delta">↑ 6.1% vs last month</div>
+        <div class="kpi-bar"></div>
+      </div>
+    </div>
+
+    <div class="embed-card">
+      <div class="browser-bar">
+        <div class="b-dots"><i></i><i></i><i></i></div>
+        <div class="b-url">🔒 app.powerbi.com · Secured Embed · PW Internal</div>
+        <div class="b-actions">
+          <button class="b-btn" onclick="refreshReport()">↻ Refresh</button>
+          <button class="b-btn" onclick="goFS()">⤢ Fullscreen</button>
+        </div>
+      </div>
+      <div id="loader"><div class="ring"></div><span>Loading report…</span></div>
+      <iframe
+        id="rpt"
+        title="Fee Calculator Dashboard"
+        src="https://app.powerbi.com/view?r=eyJrIjoiNGViNTdmNGYtZTBhNC00YzJiLTgzOTQtNjg5OTVhMDJmNWNlIiwidCI6IjY5MzI3NDk3LWFjMTktNGU5MC1iYWI0LWY2NDVlOTY0YTM4ZiJ9"
+        frameborder="0" allowfullscreen="true"
+        onload="iframeReady()"
+      ></iframe>
+    </div>
+  </main>
+
+  <footer>
+    <div class="f-left">🔐 Authenticated via Google · Only <span class="f-accent">@pw.live</span> accounts · PW Internal Portal</div>
+    <span id="fUser"></span>
+  </footer>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  ⚙️  CONFIGURATION — fill before deploying
+// ══════════════════════════════════════════════
+const CFG = {
+  // Steps to get your Client ID:
+  // 1. Go to console.cloud.google.com → New Project
+  // 2. APIs & Services → OAuth consent screen → External → fill app name
+  // 3. APIs & Services → Credentials → Create → OAuth 2.0 Client ID → Web application
+  // 4. Add your hosted URL under "Authorized JavaScript origins"
+  // 5. Paste the generated Client ID below
+  googleClientId: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+
+  // Allowed email domain — only this domain can log in
+  domain: "pw.live"
+};
+// ══════════════════════════════════════════════
+
+const $ = id => document.getElementById(id);
+
+function boot() {
+  if (CFG.googleClientId.startsWith("YOUR_")) {
+    console.warn("⚠️ Running in demo mode. Set googleClientId in CFG to enable real auth.");
+    // Uncomment next line to preview dashboard without auth:
+    // demoLogin();
+    return;
+  }
+
+  google.accounts.id.initialize({
+    client_id: CFG.googleClientId,
+    callback: onCred,
+    auto_select: true,
+    cancel_on_tap_outside: false,
+    hosted_domain: CFG.domain   // ← Google rejects non-pw.live accounts at OAuth level too
+  });
+
+  // Try silent One Tap sign-in first
+  google.accounts.id.prompt();
+}
+
+function onCred(response) {
+  try {
+    const payload = parseJwt(response.credential);
+    const email   = (payload.email || "").toLowerCase();
+    const domain  = email.split("@")[1] || "";
+
+    // Double-check domain even though hosted_domain restricts it
+    if (domain !== CFG.domain) {
+      showErr(`❌ Access denied. Only @${CFG.domain} accounts can access this dashboard.\nYou attempted: ${email}`);
+      google.accounts.id.disableAutoSelect();
+      return;
+    }
+
+    showApp({
+      name:     payload.name    || email,
+      email:    email,
+      picture:  payload.picture || null,
+      initials: initials(payload.name || email)
+    });
+  } catch(e) {
+    showErr("Authentication error. Please try again.");
+    console.error(e);
+  }
+}
+
+function showApp(user) {
+  const av = $("uAv");
+  if (user.picture) {
+    av.innerHTML = `<img src="${user.picture}" alt="avatar"/>`;
+  } else {
+    av.textContent = user.initials;
+  }
+  $("uEmail").textContent = user.email;
+  $("fUser").textContent  = user.name;
+  $("ts").textContent     = "Live · " + new Date().toLocaleString("en-IN", { dateStyle:"medium", timeStyle:"short" });
+  $("login-screen").classList.add("out");
+  $("app").classList.add("on");
+}
+
+$("outBtn").addEventListener("click", () => {
+  if (!CFG.googleClientId.startsWith("YOUR_")) {
+    google.accounts.id.disableAutoSelect();
+    google.accounts.id.revoke($("uEmail").textContent, () => {});
+  }
+  $("app").classList.remove("on");
+  $("login-screen").classList.remove("out");
+  $("err").classList.remove("on");
+});
+
+$("gBtn").addEventListener("click", () => {
+  if (CFG.googleClientId.startsWith("YOUR_")) { demoLogin(); return; }
+  // Trigger the One Tap popup or redirect
+  google.accounts.id.prompt(n => {
+    // If one-tap was suppressed, fall back to redirect
+    if (n.isNotDisplayed() || n.isSkippedMoment()) {
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: CFG.googleClientId,
+        scope: "openid email profile",
+        hosted_domain: CFG.domain,
+        callback: () => {}
+      });
+      client.requestAccessToken();
+    }
+  });
+});
+
+function iframeReady() {
+  $("loader").style.display = "none";
+  $("rpt").style.display    = "block";
+}
+function refreshReport() {
+  $("rpt").style.display    = "none";
+  $("loader").style.display = "flex";
+  $("rpt").src = $("rpt").src;
+}
+function goFS() {
+  const f = $("rpt");
+  (f.requestFullscreen || f.webkitRequestFullscreen || (()=>{})).call(f);
+}
+
+function parseJwt(token) {
+  const b64 = token.split(".")[1].replace(/-/g,"+").replace(/_/g,"/");
+  return JSON.parse(atob(b64));
+}
+function initials(name) {
+  return name.split(/\s+/).map(p=>p[0]).join("").toUpperCase().slice(0,2);
+}
+function showErr(msg) {
+  const el = $("err"); el.textContent = msg; el.classList.add("on");
+}
+function demoLogin() {
+  showApp({ name:"Demo User", email:"demo@pw.live", picture:null, initials:"DU" });
+  document.querySelector(".secure-pill").innerHTML = `<div class="secure-dot"></div> Demo Mode`;
+}
+
+window.addEventListener("load", () => {
+  const wait = setInterval(() => {
+    if (typeof google !== "undefined" && google.accounts) {
+      clearInterval(wait); boot();
+    }
+  }, 80);
+});
+</script>
+</body>
+</html>
