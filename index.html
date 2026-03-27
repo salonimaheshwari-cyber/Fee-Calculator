@@ -416,11 +416,20 @@ const $ = id => document.getElementById(id);
 
 function boot() {
   if (CFG.googleClientId.startsWith("YOUR_")) {
-    console.warn("⚠️ Running in demo mode. Set googleClientId in CFG to enable real auth.");
-    // Uncomment next line to preview dashboard without auth:
-    // demoLogin();
+    console.warn("⚠️ Running in demo mode.");
     return;
   }
+
+  google.accounts.id.initialize({
+    client_id: CFG.googleClientId,
+    callback: onCred,
+    auto_select: false,
+    cancel_on_tap_outside: false
+  });
+
+  // Force login popup
+  document.getElementById("gBtn").click();
+}
 
   google.accounts.id.initialize({
     client_id: CFG.googleClientId,
@@ -431,7 +440,7 @@ function boot() {
   });
 
   // Try silent One Tap sign-in first
-  google.accounts.id.prompt();
+  
 }
 
 function onCred(response) {
