@@ -416,20 +416,11 @@ const $ = id => document.getElementById(id);
 
 function boot() {
   if (CFG.googleClientId.startsWith("YOUR_")) {
-    console.warn("⚠️ Running in demo mode.");
+    console.warn("⚠️ Running in demo mode. Set googleClientId in CFG to enable real auth.");
+    // Uncomment next line to preview dashboard without auth:
+    // demoLogin();
     return;
   }
-
-  google.accounts.id.initialize({
-    client_id: CFG.googleClientId,
-    callback: onCred,
-    auto_select: false,
-    cancel_on_tap_outside: false
-  });
-
-  // Force login popup
-  document.getElementById("gBtn").click();
-}
 
   google.accounts.id.initialize({
     client_id: CFG.googleClientId,
@@ -440,7 +431,7 @@ function boot() {
   });
 
   // Try silent One Tap sign-in first
-  
+  google.accounts.id.prompt();
 }
 
 function onCred(response) {
@@ -448,11 +439,10 @@ function onCred(response) {
     const payload = parseJwt(response.credential);
     const email   = (payload.email || "").toLowerCase();
     const domain  = email.split("@")[1] || "";
-    const hd      = payload.hd || "";
 
-    // Strict domain validation
-    if (hd !== CFG.domain || domain !== CFG.domain) {
-      showErr(`❌ Access denied. Only @${CFG.domain} accounts can access this dashboard.`);
+    // Double-check domain even though hosted_domain restricts it
+    if (domain !== CFG.domain) {
+      showErr(`❌ Access denied. Only @${CFG.domain} accounts can access this dashboard.\nYou attempted: ${email}`);
       google.accounts.id.disableAutoSelect();
       return;
     }
